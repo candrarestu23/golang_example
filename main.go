@@ -1,12 +1,13 @@
 package main
 
 import (
-	"encoding/json"
+	"database/sql"
 	"log"
 	"net/http"
-	"strconv"
 
 	"github.com/gorilla/mux"
+	_ "github.com/lib/pq"
+	"github.com/subosito/gotenv"
 )
 
 type Book struct {
@@ -17,16 +18,37 @@ type Book struct {
 }
 
 var books []Book
+var db *sql.DB
+
+func logFatal(err error) {
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func init() {
+	gotenv.Load()
+}
 
 func main() {
-	router := mux.NewRouter()
+	// connStr := "user=" + os.Getenv("username") +
+	// 	" dbname=" + os.Getenv("dbName") +
+	// 	" password=" + os.Getenv("password") +
+	// 	" host=" + os.Getenv("URL") +
+	// 	" sslmode=disable"
 
-	books = append(books,
-		Book{ID: 1, Title: "Golang Pointers", Author: "Mr. Golang", Year: "2010"},
-		Book{ID: 2, Title: "GoRoutines", Author: "Mr. Goroutines", Year: "2011"},
-		Book{ID: 3, Title: "Golang Routers", Author: "Mr. Router", Year: "2012"},
-		Book{ID: 4, Title: "Golang Concurrency", Author: "Mr. Concurency", Year: "2013"},
-		Book{ID: 5, Title: "Golang Good Parts", Author: "Mr. Good", Year: "2014"})
+	connStr := "user=candra" +
+		" dbname=testdb" +
+		" password=candra1995" +
+		" host=167.71.200.137" +
+		" sslmode=disable"
+	db, err := sql.Open("postgres", connStr)
+	logFatal(err)
+
+	err = db.Ping()
+	logFatal(err)
+
+	router := mux.NewRouter()
 
 	router.HandleFunc("/books", getBooks).Methods("GET")
 	router.HandleFunc("/books/{id}", getBook).Methods("GET")
@@ -39,39 +61,31 @@ func main() {
 }
 
 func getBooks(w http.ResponseWriter, r *http.Request) {
-	json.NewEncoder(w).Encode(books)
+	var book Book
+	books = []Book{}
+
+	rows, err := db.Query("select * from test_table")
+	logFatal(err)
+
+	defer rows.Close()
+
+	for rows.Next() {
+		rows.Scan(&book.ID, &book.Title, &book.Author, &book.Year)
+		logFatal(err)
+
+		books = append(books, book)
+	}
 }
 
 func getBook(w http.ResponseWriter, r *http.Request) {
-	params := mux.Vars(r)
-	i, _ := strconv.Atoi(params["id"])
-	for _, book := range books {
-		if book.ID == i {
-			json.NewEncoder(w).Encode(&book)
-		}
-	}
+	print(3)
 }
 
 func addBook(w http.ResponseWriter, r *http.Request) {
-	var book Book
-	_ = json.NewDecoder(r.Body).Decode(&book)
-
-	books = append(books, book)
-
-	json.NewEncoder(w).Encode(books)
 }
 
 func updateBook(w http.ResponseWriter, r *http.Request) {
-	var book Book
-	json.NewDecoder(r.Body).Decode(&book)
-
-	for i, item := range books {
-		if item.ID == book.ID {
-			books[i] = book
-		}
-	}
 }
 
 func removeBook(w http.ResponseWriter, r *http.Request) {
-	log.Println("remove Book is Called")
 }
