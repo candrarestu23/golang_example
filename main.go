@@ -2,19 +2,23 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/gorilla/mux"
+	"github.com/lib/pq"
 	_ "github.com/lib/pq"
 	"github.com/subosito/gotenv"
 )
 
 type Book struct {
-	ID     int    `jsonL:"id"`
-	Title  string `jsonL:"title"`
-	Author string `jsonL:"author"`
-	Year   string `jsonL:"year"`
+	ID     int    `json:"id"`
+	Title  string `json:"title"`
+	Author string `json:"author"`
+	Year   string `json:"years"`
 }
 
 var books []Book
@@ -31,18 +35,10 @@ func init() {
 }
 
 func main() {
-	// connStr := "user=" + os.Getenv("username") +
-	// 	" dbname=" + os.Getenv("dbName") +
-	// 	" password=" + os.Getenv("password") +
-	// 	" host=" + os.Getenv("URL") +
-	// 	" sslmode=disable"
+	pgUrl, err := pq.ParseURL(os.Getenv("ELEPHAN_URL"))
+	logFatal(err)
 
-	connStr := "user=candra" +
-		" dbname=testdb" +
-		" password=candra1995" +
-		" host=167.71.200.137" +
-		" sslmode=disable"
-	db, err := sql.Open("postgres", connStr)
+	db, err = sql.Open("postgres", pgUrl)
 	logFatal(err)
 
 	err = db.Ping()
@@ -57,15 +53,15 @@ func main() {
 	router.HandleFunc("/books{id}", removeBook).Methods("DELETE")
 
 	log.Fatal(http.ListenAndServe(":8080", router))
-
 }
 
 func getBooks(w http.ResponseWriter, r *http.Request) {
 	var book Book
 	books = []Book{}
 
-	rows, err := db.Query("select * from test_table")
+	rows, err := db.Query("select * from books")
 	logFatal(err)
+	fmt.Println(rows)
 
 	defer rows.Close()
 
@@ -75,10 +71,11 @@ func getBooks(w http.ResponseWriter, r *http.Request) {
 
 		books = append(books, book)
 	}
+	json.NewEncoder(w).Encode(books)
 }
 
 func getBook(w http.ResponseWriter, r *http.Request) {
-	print(3)
+	fmt.Println("Successfully connected!")
 }
 
 func addBook(w http.ResponseWriter, r *http.Request) {
